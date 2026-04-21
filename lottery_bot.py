@@ -250,7 +250,80 @@ async def cmd_count(message: Message) -> None:
         f"Всего участников: <b>{len(participants)}</b>\n"
         f"Свободных номеров: <b>{400 - len(participants)}</b>"
     )
+def admin_draw_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🎲 Сгенерировать числа", callback_data="draw_winners")]
+        ]
+    )
 
+
+def reroll_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Сгенерировать заново", callback_data="draw_winners")]
+        ]
+    )
+
+
+async def get_random_winners(count: int = 3) -> list[dict]:
+    participants = await get_all_participants()
+
+    if not participants:
+        return []
+
+    if len(participants) <= count:
+        return random.sample(participants, len(participants))
+
+    return random.sample(participants, count)
+
+
+def format_winners_message(winners: list[dict]) -> str:
+    if not winners:
+        return "В лотерее пока нет участников."
+
+    lines = ["🎉 <b>Результат генерации</b>\n"]
+
+    for index, participant in enumerate(winners, start=1):
+        username = f"@{participant['username']}" if participant["username"] else "без username"
+
+        lines.append(
+            f"<b>{index}.</b> {participant['full_name']}\n"
+            f"Username: {username}\n"
+            f"Номер: <b>{participant['lottery_number']}</b>\n"
+        )
+
+    return "\n".join(lines)
+
+
+@dp.message(Command("draw"))
+async def cmd_draw(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("Эта команда доступна только администратору.")
+        return
+
+    await message.answer(
+        "Панель розыгрыша.\nНажми кнопку ниже:",
+        reply_markup=admin_draw_keyboard()
+    )
+
+
+@dp.callback_query(lambda c: c.data == "draw_winners")
+async def process_draw_winners(callback: CallbackQuery) -> None:
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Недоступно", show_alert=True)
+        return
+
+    winners = await get_random_winners(3)
+    text = format_winners_message(winners)
+
+    if callback.message:
+        await callback.message.edit_text(
+            text,
+            reply_markup=reroll_keyboard()
+        )
+
+    await callback.answer("Готово")
 
 async def main() -> None:
     await init_db()
