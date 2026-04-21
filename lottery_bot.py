@@ -28,7 +28,7 @@ if not ADMIN_ID_RAW.isdigit():
     raise ValueError("ADMIN_ID в .env должен быть числом")
 
 ADMIN_ID = int(ADMIN_ID_RAW)
-DB_PATH = "lottery_bot.db"
+DB_PATH = os.path.join(os.path.dirname(__file__), "lottery_bot.db")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
